@@ -1,0 +1,12 @@
+dbt_packages/
+dbt_internal_packages/
+.env
+logs/
+target/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log

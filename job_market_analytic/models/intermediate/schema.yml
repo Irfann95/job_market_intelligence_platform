@@ -1,0 +1,9 @@
+version: 2
+
+models:
+  - name: int_jobs_enriched
+    description: "Job offers enriched with experience category, department and annual salary."
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "NOT (experience_libelle LIKE '%An(s)%' OR experience_libelle LIKE '%Mois%') OR categorie_xp != 'Non précisé'"

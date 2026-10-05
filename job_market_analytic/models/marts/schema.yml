@@ -1,0 +1,62 @@
+version: 2
+
+models:
+    - name: marts_salary_zone
+      description: "This model calculates the average salary and number of job offers per department."
+      tests:
+        - dbt_utils.expression_is_true:
+            arguments:
+              expression: "nb_offres >= nb_offres_salaire"
+        
+      columns:
+        - name: departement
+          tests:
+            - not_null
+            - unique
+          description: "The department code extracted from the job location."
+        - name: salaire_moyen
+          description: "The average annual salary for job offers in the department."
+        - name: nb_offres
+          tests:
+            - not_null
+          description: "The total number of job offers in the department."
+        - name: nb_offres_salaire
+          description: "The number of job offers with a specified salary in the department." 
+    - name: marts_competences_demande 
+      description: >
+        Number of job offers requesting each skill. One row per skill key: the
+        France Travail skill code when it exists, otherwise the lowercased and
+        trimmed label, so that variants like "Power BI" and "power bi" are merged.
+        Counts distinct offers, not skill mentions. Only a minority of offers have
+        a skills list (52 of 150 in the initial batch), so these figures do not
+        describe the whole market. Skill 300067 ("Analyser, exploiter, structurer
+        des données") appears on almost every offer that has a skills list: it is
+        not discriminating and is kept on purpose, so filter it out when ranking
+        skills.
+      tests:
+        - dbt_utils.expression_is_true:
+            arguments:
+              expression: "cle_competence != ''"
+        
+      columns:
+        - name: cle_competence
+          tests:
+            - not_null
+            - unique
+          description: "The standardized skill label used for analysis."
+    - name: marts_repartition_niveau
+      description: >
+        Percentage of job offers by experience level. One row per experience
+        level, with the percentage of total offers that require that level.
+        
+      columns:
+        - name: categorie_xp
+          tests:
+            - not_null
+            - unique
+            - accepted_values:
+                arguments:
+                  values: ["Junior", "Confirmé", "Senior", "Non précisé"]
+          description: "The experience level category for the job offer."
+        - name: percentage
+          description: "The percentage of total job offers that require this experience level."

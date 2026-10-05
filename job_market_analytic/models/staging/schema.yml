@@ -1,0 +1,20 @@
+version: 2
+
+models:
+    - name: stg_jobs
+      description: "This model represents the staging layer for job offers data."
+      columns:
+        - name: job_offert_id
+          tests:
+            - not_null
+            - unique
+          description: "The unique identifier for each job offer."
+    - name: stg_job_competences
+      description: "This model represents the staging layer for skills data."
+      columns:
+        - name: job_offert_id
+          tests:
+            - relationships:
+                arguments:
+                  to: ref('stg_jobs')
+                  field: job_offert_id

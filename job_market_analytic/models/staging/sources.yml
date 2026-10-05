@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: job_market_analytic
+    schema: "public"
+    description: Job Market Analytic 
+    tables:
+      - name: raw_offers
+        description: One job offer per raw

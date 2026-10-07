@@ -6,7 +6,7 @@ provider "aws" {
 ## S3 bucket config
 
 resource "random_id" "bucket_suffix" {
-  byte_length = 4 
+  byte_length = 4
 }
 
 resource "aws_kms_key" "job_market_intelligence_platform_key" {
@@ -23,29 +23,29 @@ resource "aws_s3_bucket" "job_market_intelligence_platform_bucket" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "expiration" {
-    bucket = aws_s3_bucket.job_market_intelligence_platform_bucket.id
+  bucket = aws_s3_bucket.job_market_intelligence_platform_bucket.id
 
-    rule { 
-        filter {}
-        id = "expire-objects"
-        status = "Enabled"
-        expiration {
-            days = 30
-        }
+  rule {
+    filter {}
+    id     = "expire-objects"
+    status = "Enabled"
+    expiration {
+      days = 30
     }
+  }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "encryption" {
-    bucket = aws_s3_bucket.job_market_intelligence_platform_bucket.id
+  bucket = aws_s3_bucket.job_market_intelligence_platform_bucket.id
 
-    rule {
-        apply_server_side_encryption_by_default {
-            kms_master_key_id = aws_kms_key.job_market_intelligence_platform_key.arn
-            sse_algorithm     = "aws:kms"
-        }
-        bucket_key_enabled       = true
-        blocked_encryption_types = ["SSE-C"]
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.job_market_intelligence_platform_key.arn
+      sse_algorithm     = "aws:kms"
     }
+    bucket_key_enabled       = true
+    blocked_encryption_types = ["SSE-C"]
+  }
 }
 
 data "aws_availability_zones" "available" {
@@ -56,12 +56,12 @@ data "aws_availability_zones" "available" {
 ## VPC Config
 
 resource "aws_vpc" "redshift_vpc" {
-    tags = {
-        Name = "redshift-vpc"
-    }
-    cidr_block = "10.0.0.0/16"
-    enable_dns_support   = true
-    enable_dns_hostnames = true
+  tags = {
+    Name = "redshift-vpc"
+  }
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 }
 
 
@@ -80,9 +80,9 @@ resource "aws_internet_gateway" "gateway" {
 }
 
 resource "aws_security_group" "redshift_security_group" {
-  name = "redshift-security-group"
+  name        = "redshift-security-group"
   description = "Security group for Redshift database"
-  vpc_id = aws_vpc.redshift_vpc.id
+  vpc_id      = aws_vpc.redshift_vpc.id
 
   tags = {
     Name = "redshift-security-group"
@@ -95,19 +95,18 @@ resource "aws_vpc_security_group_ingress_rule" "redshift_security_group_ingress_
   to_port           = 5439
   ip_protocol       = "tcp"
   cidr_ipv4         = var.my_ip_cidr
-
   tags = {
     Name = "allow-redshift"
   }
 }
 
 resource "aws_subnet" "redshift_subnet" {
-  vpc_id = aws_vpc.redshift_vpc.id
-  count = 3
+  vpc_id     = aws_vpc.redshift_vpc.id
+  count      = 3
   cidr_block = cidrsubnet("10.0.0.0/16", 8, count.index + 1)
   tags = {
-        Name = "redshift-subnet-${count.index + 1}"
-    }
+    Name = "redshift-subnet-${count.index + 1}"
+  }
   availability_zone = data.aws_availability_zones.available.names[count.index]
 }
 
@@ -115,12 +114,12 @@ resource "aws_subnet" "redshift_subnet" {
 ## Redshift Severless Config
 
 resource "aws_redshiftserverless_namespace" "redshift_namespace" {
-    namespace_name = var.my_namespace_name
-    db_name = var.my_db_name
-    admin_username = var.my_admin_username
-    admin_user_password = var.my_admin_user_password
-    default_iam_role_arn = aws_iam_role.redshift_role.arn
-    iam_roles = [aws_iam_role.redshift_role.arn]
+  namespace_name       = var.my_namespace_name
+  db_name              = var.my_db_name
+  admin_username       = var.my_admin_username
+  admin_user_password  = var.my_admin_user_password
+  default_iam_role_arn = aws_iam_role.redshift_role.arn
+  iam_roles            = [aws_iam_role.redshift_role.arn]
 }
 
 
@@ -153,7 +152,7 @@ resource "aws_iam_policy" "S3_policy_Redshift" {
         Action = [
           "s3:GetObject"
         ]
-        Effect   = "Allow"
+        Effect = "Allow"
         Resource = [
           "${aws_s3_bucket.job_market_intelligence_platform_bucket.arn}/*",
         ]
@@ -162,7 +161,7 @@ resource "aws_iam_policy" "S3_policy_Redshift" {
         Action = [
           "s3:ListBucket"
         ]
-        Effect   = "Allow"
+        Effect = "Allow"
         Resource = [
           "${aws_s3_bucket.job_market_intelligence_platform_bucket.arn}"
         ]
@@ -173,7 +172,7 @@ resource "aws_iam_policy" "S3_policy_Redshift" {
           "kms:Decrypt",
           "kms:GenerateDataKey*"
         ],
-        Effect   = "Allow"
+        Effect = "Allow"
         Resource = [
           "*"
         ]
@@ -191,10 +190,170 @@ resource "aws_iam_role_policy_attachment" "attach_role_policy" {
 resource "aws_redshiftserverless_workgroup" "redshift_workgroup" {
   namespace_name = aws_redshiftserverless_namespace.redshift_namespace.namespace_name
   workgroup_name = "redshift-workgroup"
-  base_capacity = 8
-  subnet_ids = aws_subnet.redshift_subnet[*].id
+  base_capacity  = 8
+  subnet_ids     = aws_subnet.redshift_subnet[*].id
   security_group_ids = [
     aws_security_group.redshift_security_group.id
   ]
   publicly_accessible = true
+}
+
+
+## EC2 Instance Config
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+}
+
+resource "aws_instance" "app_server" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.large"
+  subnet_id                   = aws_subnet.redshift_subnet[0].id
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.ec2_security_group.id]
+  key_name                    = aws_key_pair.aws_key_pair_ec2.key_name
+  iam_instance_profile        = aws_iam_instance_profile.aws_iam_instance_profile_ec2.name
+  lifecycle {
+    ignore_changes = [associate_public_ip_address, ami]
+  }
+  root_block_device {
+    volume_size = 30
+    volume_type = "gp3"
+  }
+  tags = {
+    Name = "learn-terraform"
+  }
+}
+
+resource "aws_security_group" "ec2_security_group" {
+  name        = "ec2_security_group_name"
+  description = "Security group for EC2 instances"
+  vpc_id      = aws_vpc.redshift_vpc.id
+  tags = {
+    Name = "ec2-security-group"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "ec2_security_group_ingress_rule" {
+  security_group_id = aws_security_group.ec2_security_group.id
+  description       = "Allow EC2"
+  from_port         = 22
+  to_port           = 22
+  ip_protocol       = "tcp"
+  cidr_ipv4         = var.my_ip_cidr
+
+  tags = {
+    Name = "allow-ssh"
+  }
+}
+
+resource "aws_vpc_security_group_egress_rule" "ec2_security_group_egress_rule" {
+  security_group_id = aws_security_group.ec2_security_group.id
+  description       = "Allow EC2 egress"
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
+
+  tags = {
+    Name = "allow-ssh-egress"
+  }
+}
+
+resource "aws_key_pair" "aws_key_pair_ec2" {
+  key_name   = "aws_key_pair_ec2"
+  public_key = file("~/.ssh/aws_key_pair.pub")
+}
+
+output "redshift_endpoint" {
+  value = aws_redshiftserverless_workgroup.redshift_workgroup.endpoint
+}
+
+output "ec2_public_ip" {
+  value = aws_instance.app_server.public_ip
+}
+
+output "instance_id" {
+  value = aws_instance.app_server.id
+}
+
+
+resource "aws_iam_role" "aws_iam_role_ec2" {
+  name = "aws_iam_role_ec2"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "S3_policy_ec2" {
+  name = "S3_policy_ec2"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "${aws_s3_bucket.job_market_intelligence_platform_bucket.arn}/*",
+        ]
+      },
+      {
+        Action = [
+          "s3:ListBucket"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "${aws_s3_bucket.job_market_intelligence_platform_bucket.arn}"
+        ]
+      },
+      {
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey*"
+        ],
+        Effect = "Allow"
+        Resource = [
+          "${aws_kms_key.job_market_intelligence_platform_key.arn}"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_role_policy_ec2" {
+  role       = aws_iam_role.aws_iam_role_ec2.name
+  policy_arn = aws_iam_policy.S3_policy_ec2.arn
+}
+
+resource "aws_iam_instance_profile" "aws_iam_instance_profile_ec2" {
+  name = "aws_iam_instance_profile_ec2"
+  role = aws_iam_role.aws_iam_role_ec2.name
+}
+
+resource "aws_vpc_security_group_ingress_rule" "redshift_from_ec2" {
+  security_group_id            = aws_security_group.redshift_security_group.id
+  referenced_security_group_id = aws_security_group.ec2_security_group.id
+  ip_protocol                  = "tcp"
+  from_port                    = 5439
+  to_port                      = 5439
+  description                  = "Allow Redshift access from EC2"
+  tags                         = { Name = "redshift-from-ec2" }
 }

@@ -10,3 +10,4 @@ target/
 *.tfstate.*
 *.tfvars
 crash.log
+*.tfplan

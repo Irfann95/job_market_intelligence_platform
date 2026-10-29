@@ -1,4 +1,3 @@
-
 provider "aws" {
   region = "eu-north-1"
 }
@@ -356,4 +355,60 @@ resource "aws_vpc_security_group_ingress_rule" "redshift_from_ec2" {
   to_port                      = 5439
   description                  = "Allow Redshift access from EC2"
   tags                         = { Name = "redshift-from-ec2" }
+}
+
+
+resource "aws_iam_policy" "redshift_data_api_policy_ec2" {
+  name        = "Redshift_Data_API_policy_ec2"
+  description = "Allow EC2 Airflow to execute SQL on Redshift Serverless"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "ExecuteRedshiftStatements"
+        Effect = "Allow"
+
+        Action = [
+          "redshift-data:ExecuteStatement",
+          "redshift-data:BatchExecuteStatement"
+        ]
+
+        Resource = aws_redshiftserverless_workgroup.redshift_workgroup.arn
+      },
+      {
+        Sid    = "ManageRedshiftStatements"
+        Effect = "Allow"
+
+        Action = [
+          "redshift-data:DescribeStatement",
+          "redshift-data:CancelStatement"
+        ]
+
+        Resource = "*"
+
+        Condition = {
+          StringEquals = {
+            "redshift-data:statement-owner-iam-userid" = "$${aws:userid}"
+          }
+        }
+      },
+      {
+        Sid    = "GetRedshiftCredentials"
+        Effect = "Allow"
+
+        Action = [
+          "redshift-serverless:GetCredentials"
+        ]
+
+        Resource = aws_redshiftserverless_workgroup.redshift_workgroup.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_redshift_policy_ec2" {
+  role       = aws_iam_role.aws_iam_role_ec2.name
+  policy_arn = aws_iam_policy.redshift_data_api_policy_ec2.arn
 }
